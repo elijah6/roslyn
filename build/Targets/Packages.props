@@ -42,6 +42,7 @@
     <MicrosoftIdentityModelClientsActiveDirectoryVersion>3.13.8</MicrosoftIdentityModelClientsActiveDirectoryVersion>                                                 
     <MicrosoftInternalPerformanceCodeMarkersDesignTimeVersion>15.0.26201-alpha</MicrosoftInternalPerformanceCodeMarkersDesignTimeVersion>                             
     <MicrosoftInternalVisualStudioShellInterop140DesignTimeVersion>14.3.25407-alpha</MicrosoftInternalVisualStudioShellInterop140DesignTimeVersion>                   
+    <MicrosoftMetadataVisualizerVersion>1.0.0-beta1-61531-03</MicrosoftMetadataVisualizerVersion>
     <MicrosoftMSXMLVersion>8.0.0.0-alpha</MicrosoftMSXMLVersion>                                                                                                      
     <MicrosoftNetCompilersVersion>2.0.1</MicrosoftNetCompilersVersion>                                                                                                
     <MicrosoftNetCompilersnetcoreVersion>2.0.0-rc2-61102-09</MicrosoftNetCompilersnetcoreVersion>                                                                     
@@ -53,6 +54,7 @@
     <MicrosoftNETCoreRuntimeCoreCLRVersion>1.1.0</MicrosoftNETCoreRuntimeCoreCLRVersion>                                                                              
     <MicrosoftNETCoreTestHostVersion>1.1.0</MicrosoftNETCoreTestHostVersion>                                                                                          
     <MicrosoftNetFX20Version>1.0.3</MicrosoftNetFX20Version>                                                                                                          
+    <MicrosoftNetSdkVersion>2.0.0-alpha-20170405-2</MicrosoftNetSdkVersion>
     <MicrosoftNuGetBuildTasksVersion>0.1.0</MicrosoftNuGetBuildTasksVersion>                                                                                          
     <MicrosoftPortableTargetsVersion>0.1.2-dev</MicrosoftPortableTargetsVersion>                                                                                      
     <MicrosoftServiceHubClientVersion>1.0.177-rc-g56d40a8a02</MicrosoftServiceHubClientVersion>                                                                       
