@@ -38,7 +38,7 @@ function Run-Build() {
 
 function Run-Test() {
     $proj = Join-Path $repoDir "BuildAndTest.proj"
-    Invoke-Expression "& `"$msbuild`" /v:m /p:SkipCoreClr=true /t:Test $proj"
+    Invoke-Expression "& `"$msbuild`" /v:m /p:SkipCoreClr=true /p:ManualTest=true /t:Test $proj"
 }
 
 try {
