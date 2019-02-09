@@ -18,8 +18,6 @@
                 <StackPanel>
                     <CheckBox x:Name="Enable_full_solution_analysis"
                               Content="{x:Static local:AdvancedOptionPageStrings.Option_Enable_full_solution_analysis}" />
-                    <CheckBox x:Name="Perform_editor_feature_analysis_in_external_process"
-                              Content="{x:Static local:AdvancedOptionPageStrings.Option_Perform_editor_feature_analysis_in_external_process}" />
                 </StackPanel>
             </GroupBox>
             <GroupBox x:Uid="ImportDirectivesGroupBox"
@@ -105,6 +103,19 @@
                               Content="{x:Static local:AdvancedOptionPageStrings.Option_NavigateToObjectBrowser}" />
                 </StackPanel>
             </GroupBox>
+
+            <GroupBox x:Uid="RegularExpressionsGroupBox"
+                    Header="{x:Static local:AdvancedOptionPageStrings.Option_Regular_Expressions}">
+                <StackPanel>
+                    <CheckBox x:Name="Colorize_regular_expressions"
+                        Content="{x:Static local:AdvancedOptionPageStrings.Option_Colorize_regular_expressions}" />
+                    <CheckBox x:Name="Report_invalid_regular_expressions"
+                        Content="{x:Static local:AdvancedOptionPageStrings.Option_Report_invalid_regular_expressions}" />
+                    <CheckBox x:Name="Highlight_related_components_under_cursor"
+                        Content="{x:Static local:AdvancedOptionPageStrings.Option_Highlight_related_components_under_cursor}" />
+                </StackPanel>
+            </GroupBox>
+
             <GroupBox x:Uid="ExtractMethodGroupBox"
                       Header="{x:Static local:AdvancedOptionPageStrings.Option_ExtractMethod}">
                 <StackPanel>
@@ -141,7 +152,7 @@
                     </StackPanel>
                 </StackPanel>
             </GroupBox>
-            
+
         </StackPanel>
     </ScrollViewer>
 </options:AbstractOptionPageControl>

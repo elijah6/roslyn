@@ -161,7 +161,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
         End Property
 
         ''' <summary>
-        ''' True if the type itself Is excluded from code covarage instrumentation.
+        ''' True if the type itself Is excluded from code coverage instrumentation.
         ''' True for source types marked with <see cref="AttributeDescription.ExcludeFromCodeCoverageAttribute"/>.
         ''' </summary>
         Friend Overridable ReadOnly Property IsDirectlyExcludedFromCodeCoverage As Boolean
@@ -1033,7 +1033,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
 
         ''' <summary>
         ''' True if this is a reference to an <em>unbound</em> generic type.  These occur only
-        ''' within a <code>GetType</code> expression.  A generic type is considered <em>unbound</em>
+        ''' within a <c>GetType</c> expression.  A generic type is considered <em>unbound</em>
         ''' if all of the type argument lists in its fully qualified name are empty.
         ''' Note that the type arguments of an unbound generic type will be returned as error
         ''' types because they do not really have type arguments.  An unbound generic type
@@ -1283,11 +1283,11 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
                     Do
                         levelsOfNesting += 1
                         typeToCheck = DirectCast(typeToCheck, NamedTypeSymbol).TypeArgumentsNoUseSiteDiagnostics(TupleTypeSymbol.RestPosition - 1)
-                    Loop While typeToCheck.OriginalDefinition = Me.OriginalDefinition AndAlso Not typeToCheck.IsDefinition
+                    Loop While TypeSymbol.Equals(typeToCheck.OriginalDefinition, Me.OriginalDefinition, TypeCompareKind.ConsiderEverything) AndAlso Not typeToCheck.IsDefinition
 
                     If typeToCheck.IsTupleType Then
                         Dim underlying = typeToCheck.TupleUnderlyingType
-                        If underlying.Arity = TupleTypeSymbol.RestPosition AndAlso underlying.OriginalDefinition <> Me.OriginalDefinition Then
+                        If underlying.Arity = TupleTypeSymbol.RestPosition AndAlso Not TypeSymbol.Equals(underlying.OriginalDefinition, Me.OriginalDefinition, TypeCompareKind.ConsiderEverything) Then
                             tupleCardinality = 0
                             Return False
                         End If

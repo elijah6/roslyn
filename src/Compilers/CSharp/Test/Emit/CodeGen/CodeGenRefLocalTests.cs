@@ -3368,7 +3368,7 @@ public class C
             );
         }
 
-        [Fact, WorkItem(25264, "https://github.com/dotnet/roslyn/issues/25264")]
+        [Fact, WorkItem(25264, "https://github.com/dotnet/roslyn/issues/25264"), CompilerTrait(CompilerFeature.IOperation)]
         public void TestNewRefArray()
         {
             var text = @"
@@ -3390,18 +3390,18 @@ IInvalidOperation (OperationKind.Invalid, Type: ?, IsInvalid) (Syntax: 'new ref[
               Children(2):
                   IOperation:  (OperationKind.None, Type: null, IsImplicit) (Syntax: '1')
                     Children(1):
-                        IInstanceReferenceOperation (OperationKind.InstanceReference, Type: ?[], IsInvalid, IsImplicit) (Syntax: 'ref[]')
+                        IInstanceReferenceOperation (ReferenceKind: ImplicitReceiver) (OperationKind.InstanceReference, Type: ?[], IsInvalid, IsImplicit) (Syntax: 'ref[]')
                   ILiteralOperation (OperationKind.Literal, Type: System.Int32, Constant: 1) (Syntax: '1')
 ";
 
             var expectedDiagnostics = new[]
             {
+                // file.cs(6,28): error CS8386: Invalid object creation
+                //         _ = /*<bind>*/ new ref[] { 1 } /*</bind>*/ ;
+                Diagnostic(ErrorCode.ERR_InvalidObjectCreation, "ref[]").WithArguments("?[]").WithLocation(6, 28),
                 // file.cs(6,31): error CS1031: Type expected
                 //         _ = /*<bind>*/ new ref[] { 1 } /*</bind>*/ ;
-                Diagnostic(ErrorCode.ERR_TypeExpected, "[").WithLocation(6, 31),
-                // file.cs(6,28): error CS8382: Invalid object creation
-                //         _ = /*<bind>*/ new ref[] { 1 } /*</bind>*/ ;
-                Diagnostic(ErrorCode.ERR_InvalidObjectCreation, "ref[]").WithArguments("?[]").WithLocation(6, 28)
+                Diagnostic(ErrorCode.ERR_TypeExpected, "[").WithLocation(6, 31)
             };
 
             VerifyOperationTreeAndDiagnosticsForTest<ObjectCreationExpressionSyntax>(text, expectedOperationTree, expectedDiagnostics);

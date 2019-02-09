@@ -135,9 +135,9 @@ namespace Microsoft.CodeAnalysis.BuildTasks.UnitTests
             };
 
             bool result = task.Execute();
-            AssertEx.AssertEqualToleratingWhitespaceDifferences(@"
-ERROR : SourceRoot paths are required to end with a slash or backslash: 'C:'
-ERROR : SourceRoot paths are required to end with a slash or backslash: 'C'
+            AssertEx.AssertEqualToleratingWhitespaceDifferences($@"
+ERROR : {string.Format(ErrorString.MapSourceRoots_PathMustEndWithSlashOrBackslash, "SourceRoot", "C:")}
+ERROR : {string.Format(ErrorString.MapSourceRoots_PathMustEndWithSlashOrBackslash, "SourceRoot", "C")}
 ", engine.Log);
 
             Assert.False(result);
@@ -331,10 +331,10 @@ ERROR : SourceRoot paths are required to end with a slash or backslash: 'C'
                 "WARNING : " + string.Format(task.Log.FormatResourceString(
                     "MapSourceRoots.ContainsDuplicate", "SourceRoot", path1, "MappedPath", "MP1", "MP2")) + Environment.NewLine +
                 "WARNING : " + string.Format(task.Log.FormatResourceString(
-                    "MapSourceRoots.ContainsDuplicate", "SourceRoot", path1, "SourceLinkUrl", "URL1", "URL2")) + Environment.NewLine, 
+                    "MapSourceRoots.ContainsDuplicate", "SourceRoot", path1, "SourceLinkUrl", "URL1", "URL2")) + Environment.NewLine,
                 engine.Log);
 
-            AssertEx.Equal(new[] 
+            AssertEx.Equal(new[]
             {
                 $"'{path1}' SourceControl='git' RevisionId='RevId1' NestedRoot='NR1A' ContainingRoot='{path3}' MappedPath='{(deterministic ? "/_/NR1A/" : path1)}' SourceLinkUrl='URL1'",
                 $"'{path2}' SourceControl='git' RevisionId='' NestedRoot='NR2' ContainingRoot='{path3}' MappedPath='{(deterministic ? "/_/NR2/" : path2)}' SourceLinkUrl=''",

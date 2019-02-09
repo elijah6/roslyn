@@ -20,8 +20,8 @@ namespace Microsoft.CodeAnalysis.Editor.CSharp.UnitTests.Diagnostics.UseExplicit
         internal override (DiagnosticAnalyzer, CodeFixProvider) CreateDiagnosticProviderAndFixer(Workspace workspace)
             => (new CSharpUseExplicitTypeDiagnosticAnalyzer(), new UseExplicitTypeCodeFixProvider());
 
-        private readonly CodeStyleOption<bool> onWithNone = new CodeStyleOption<bool>(true, NotificationOption.None);
-        private readonly CodeStyleOption<bool> offWithNone = new CodeStyleOption<bool>(false, NotificationOption.None);
+        private readonly CodeStyleOption<bool> onWithSilent = new CodeStyleOption<bool>(true, NotificationOption.Silent);
+        private readonly CodeStyleOption<bool> offWithSilent = new CodeStyleOption<bool>(false, NotificationOption.Silent);
         private readonly CodeStyleOption<bool> onWithInfo = new CodeStyleOption<bool>(true, NotificationOption.Suggestion);
         private readonly CodeStyleOption<bool> offWithInfo = new CodeStyleOption<bool>(false, NotificationOption.Suggestion);
         private readonly CodeStyleOption<bool> onWithWarning = new CodeStyleOption<bool>(true, NotificationOption.Warning);
@@ -50,10 +50,10 @@ namespace Microsoft.CodeAnalysis.Editor.CSharp.UnitTests.Diagnostics.UseExplicit
             SingleOption(CSharpCodeStyleOptions.UseImplicitTypeWhereApparent, offWithError),
             SingleOption(CSharpCodeStyleOptions.UseImplicitTypeForIntrinsicTypes, offWithInfo));
 
-        private IDictionary<OptionKey, object> ExplicitTypeNoneEnforcement() => OptionsSet(
-            SingleOption(CSharpCodeStyleOptions.UseImplicitTypeWherePossible, offWithNone),
-            SingleOption(CSharpCodeStyleOptions.UseImplicitTypeWhereApparent, offWithNone),
-            SingleOption(CSharpCodeStyleOptions.UseImplicitTypeForIntrinsicTypes, offWithNone));
+        private IDictionary<OptionKey, object> ExplicitTypeSilentEnforcement() => OptionsSet(
+            SingleOption(CSharpCodeStyleOptions.UseImplicitTypeWherePossible, offWithSilent),
+            SingleOption(CSharpCodeStyleOptions.UseImplicitTypeWhereApparent, offWithSilent),
+            SingleOption(CSharpCodeStyleOptions.UseImplicitTypeForIntrinsicTypes, offWithSilent));
 
         private IDictionary<OptionKey, object> Options(OptionKey option, object value)
         {
@@ -185,6 +185,23 @@ class Program
         }
 
         [WpfFact, Trait(Traits.Feature, Traits.Features.CodeActionsUseExplicitType)]
+        [WorkItem(27221, "https://github.com/dotnet/roslyn/issues/27221")]
+        public async Task NotIfRefTypeAlreadyExplicitlyTyped()
+        {
+            await TestMissingInRegularAndScriptAsync(
+@"using System;
+
+struct Program
+{
+    void Method()
+    {
+        ref [|Program|] p = Ref();
+    }
+    ref Program Ref() => throw null;
+}", new TestParameters(options: ExplicitTypeEverywhere()));
+        }
+
+        [WpfFact, Trait(Traits.Feature, Traits.Features.CodeActionsUseExplicitType)]
         public async Task NotOnRHS()
         {
             await TestMissingInRegularAndScriptAsync(
@@ -214,6 +231,46 @@ class Program
     void Method()
     {
         [|var|] x = new Goo();
+    }
+}", new TestParameters(options: ExplicitTypeEverywhere()));
+        }
+
+        [WorkItem(29718, "https://github.com/dotnet/roslyn/issues/29718")]
+        [WpfFact, Trait(Traits.Feature, Traits.Features.CodeActionsUseExplicitType)]
+        public async Task NotOnErrorConvertedType_ForEachVariableStatement()
+        {
+            await TestMissingInRegularAndScriptAsync(
+ @"using System;
+using System.Collections.Generic;
+
+class C
+{
+    void M()
+    {
+        // Error CS1061: 'KeyValuePair<int, int>' does not contain a definition for 'Deconstruct' and no accessible extension method 'Deconstruct' accepting a first argument of type 'KeyValuePair<int, int>' could be found (are you missing a using directive or an assembly reference?)
+        // Error CS8129: No suitable 'Deconstruct' instance or extension method was found for type 'KeyValuePair<int, int>', with 2 out parameters and a void return type.
+        foreach ([|var|] (key, value) in new Dictionary<int, int>())
+        {
+        }
+    }
+}", new TestParameters(options: ExplicitTypeEverywhere()));
+        }
+
+        [WorkItem(29718, "https://github.com/dotnet/roslyn/issues/29718")]
+        [WpfFact, Trait(Traits.Feature, Traits.Features.CodeActionsUseExplicitType)]
+        public async Task NotOnErrorConvertedType_AssignmentExpressionStatement()
+        {
+            await TestMissingInRegularAndScriptAsync(
+ @"using System;
+using System.Collections.Generic;
+
+class C
+{
+    void M(C c)
+    {
+        // Error CS1061: 'C' does not contain a definition for 'Deconstruct' and no accessible extension method 'Deconstruct' accepting a first argument of type 'C' could be found (are you missing a using directive or an assembly reference?)
+        // Error CS8129: No suitable 'Deconstruct' instance or extension method was found for type 'C', with 2 out parameters and a void return type.
+        [|var|] (key, value) = c;
     }
 }", new TestParameters(options: ExplicitTypeEverywhere()));
         }
@@ -289,6 +346,68 @@ class Program
     void Method(int? x)
     {
         int? y = x;
+    }
+}";
+            // The type is intrinsic and not apparent
+            await TestInRegularAndScriptAsync(before, after, options: ExplicitTypeEverywhere());
+            await TestInRegularAndScriptAsync(before, after, options: ExplicitTypeForBuiltInTypesOnly());
+            await TestInRegularAndScriptAsync(before, after, options: ExplicitTypeExceptWhereApparent());
+        }
+
+        [WpfFact, Trait(Traits.Feature, Traits.Features.CodeActionsUseExplicitType)]
+        [WorkItem(27221, "https://github.com/dotnet/roslyn/issues/27221")]
+        public async Task WithRefIntrinsicType()
+        {
+            var before = @"
+class Program
+{
+    void Method()
+    {
+        ref [|var|] y = Ref();
+    }
+    ref int Ref() => throw null;
+}";
+            var after = @"
+class Program
+{
+    void Method()
+    {
+        ref int y = Ref();
+    }
+    ref int Ref() => throw null;
+}";
+            // The type is intrinsic and not apparent
+            await TestInRegularAndScriptAsync(before, after, options: ExplicitTypeEverywhere());
+            await TestInRegularAndScriptAsync(before, after, options: ExplicitTypeForBuiltInTypesOnly());
+            await TestInRegularAndScriptAsync(before, after, options: ExplicitTypeExceptWhereApparent());
+        }
+
+        [WpfFact, Trait(Traits.Feature, Traits.Features.CodeActionsUseExplicitType)]
+        [WorkItem(27221, "https://github.com/dotnet/roslyn/issues/27221")]
+        public async Task WithRefIntrinsicTypeInForeach()
+        {
+            var before = @"
+class E
+{
+    public ref int Current => throw null;
+    public bool MoveNext() => throw null;
+    public E GetEnumerator() => throw null;
+
+    void M()
+    {
+        foreach (ref [|var|] x in this) { }
+    }
+}";
+            var after = @"
+class E
+{
+    public ref int Current => throw null;
+    public bool MoveNext() => throw null;
+    public E GetEnumerator() => throw null;
+
+    void M()
+    {
+        foreach (ref int x in this) { }
     }
 }";
             // The type is intrinsic and not apparent
@@ -952,7 +1071,7 @@ class C
 {
     static void M()
     {
-        [|var|] cc = new Customer { City = ""Madras"" };
+        [|var|] cc = new Customer { City = ""Chennai"" };
     }
 
     private class Customer
@@ -966,7 +1085,7 @@ class C
 {
     static void M()
     {
-        Customer cc = new Customer { City = ""Madras"" };
+        Customer cc = new Customer { City = ""Chennai"" };
     }
 
     private class Customer
@@ -1015,7 +1134,7 @@ class C
     {
         [|var|] cs = new List<Customer>
         {
-            new Customer { City = ""Madras"" }
+            new Customer { City = ""Chennai"" }
         };
     }
 
@@ -1033,7 +1152,7 @@ class C
     {
         List<Customer> cs = new List<Customer>
         {
-            new Customer { City = ""Madras"" }
+            new Customer { City = ""Chennai"" }
         };
     }
 
@@ -1449,7 +1568,7 @@ class C
         }
 
         [WpfFact, Trait(Traits.Feature, Traits.Features.CodeActionsUseImplicitType)]
-        public async Task SuggestExplicitTypeNotificationLevelNone()
+        public async Task SuggestExplicitTypeNotificationLevelSilent()
         {
             var source =
 @"using System;
@@ -1460,8 +1579,10 @@ class C
         [|var|] n1 = new C();
     }
 }";
-            await TestMissingInRegularAndScriptAsync(source,
-                new TestParameters(options: ExplicitTypeNoneEnforcement()));
+            await TestDiagnosticInfoAsync(source,
+                options: ExplicitTypeSilentEnforcement(),
+                diagnosticId: IDEDiagnosticIds.UseExplicitTypeDiagnosticId,
+                diagnosticSeverity: DiagnosticSeverity.Hidden);
         }
 
         [WpfFact, Trait(Traits.Feature, Traits.Features.CodeActionsUseImplicitType)]
@@ -1801,6 +1922,40 @@ class Program
         [|List<Int32>|] a = new List<Int32> { 1, 2 };
     }
 }", new TestParameters(options: ExplicitTypeForBuiltInTypesOnly()));
+        }
+
+        [WpfFact, Trait(Traits.Feature, Traits.Features.CodeActionsUseExplicitType)]
+        [WorkItem(26923, "https://github.com/dotnet/roslyn/issues/26923")]
+        public async Task NoSuggestionOnForeachCollectionExpression()
+        {
+            await TestMissingInRegularAndScriptAsync(
+@"using System;
+using System.Collections.Generic;
+
+class Program
+{
+    void Method(List<int> var)
+    {
+        foreach (int value in [|var|])
+        {
+            Console.WriteLine(value.Value);
+        }
+    }
+}", new TestParameters(options: ExplicitTypeEverywhere()));
+        }
+
+        [WpfFact, Trait(Traits.Feature, Traits.Features.CodeActionsUseExplicitType)]
+        public async Task NotOnConstVar()
+        {
+            // This error case is handled by a separate code fix (UseExplicitTypeForConst).
+            await TestMissingInRegularAndScriptAsync(
+@"class C
+{
+    void M()
+    {
+        const [|var|] v = 0;
+    }
+}", new TestParameters(options: ExplicitTypeEverywhere()));
         }
     }
 }

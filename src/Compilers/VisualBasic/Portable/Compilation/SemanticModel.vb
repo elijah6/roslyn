@@ -143,10 +143,6 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
             Return Nothing
         End Function
 
-        Friend Overrides Function CloneOperationCore(operation As IOperation) As IOperation
-            Return VisualBasicOperationCloner.Instance.Visit(operation)
-        End Function
-
         ''' <summary>
         ''' Returns what symbol(s), if any, the given expression syntax bound to in the program.
         '''
@@ -984,7 +980,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic
                             If useOfLocalBeforeDeclaration AndAlso Not type.IsErrorType() Then
                                 conversion = New Conversion(Conversions.ClassifyConversion(type, convertedType, Nothing))
                             Else
-                                conversion = New Conversion(KeyValuePair.Create(conversionNode.ConversionKind,
+                                conversion = New Conversion(KeyValuePairUtil.Create(conversionNode.ConversionKind,
                                                                                 TryCast(conversionNode.ExpressionSymbol, MethodSymbol)))
                             End If
                         End If
@@ -1220,7 +1216,7 @@ _Default:
                         meParam = New MeParameterSymbol(containingMember, containingType)
 
                     Else
-                        If referenceType = ErrorTypeSymbol.UnknownResultType Then
+                        If TypeSymbol.Equals(referenceType, ErrorTypeSymbol.UnknownResultType, TypeCompareKind.ConsiderEverything) Then
                             ' in an instance member, but binder considered Me/MyBase/MyClass unreferenceable
                             meParam = New MeParameterSymbol(containingMember, containingType)
                             resultKind = LookupResultKind.NotReferencable
@@ -1451,7 +1447,7 @@ _Default:
                         Case BoundKind.Attribute
                             Dim boundAttribute As BoundAttribute = DirectCast(boundNodeOfSyntacticParent, BoundAttribute)
 
-                            Debug.Assert(resultKind <> LookupResultKind.Good OrElse namedTypeSymbol = boundAttribute.Type)
+                            Debug.Assert(resultKind <> LookupResultKind.Good OrElse TypeSymbol.Equals(namedTypeSymbol, boundAttribute.Type, TypeCompareKind.ConsiderEverything))
                             constructor = boundAttribute.Constructor
                             resultKind = LookupResult.WorseResultKind(resultKind, boundAttribute.ResultKind)
 

@@ -369,7 +369,7 @@ namespace Microsoft.CodeAnalysis
         {
             DiagnosticInfo diagnosticInfo;
 
-            if (e is FileNotFoundException || e.GetType().Name == "DirectoryNotFoundException")
+            if (e is FileNotFoundException || e is DirectoryNotFoundException)
             {
                 diagnosticInfo = new DiagnosticInfo(messageProvider, messageProvider.ERR_FileNotFound, filePath);
             }
@@ -766,7 +766,15 @@ namespace Microsoft.CodeAnalysis
                                     return;
                                 }
 
-                                xmlStreamOpt.SetLength(0);
+                                try
+                                {
+                                    xmlStreamOpt.SetLength(0);
+                                }
+                                catch (Exception e)
+                                {
+                                    MessageProvider.ReportStreamWriteException(e, finalXmlFilePath, diagnostics);
+                                    return;
+                                }
                                 xmlStreamDisposerOpt = new NoThrowStreamDisposer(
                                     xmlStreamOpt,
                                     finalXmlFilePath,
@@ -836,7 +844,7 @@ namespace Microsoft.CodeAnalysis
                         var refPeStreamProviderOpt = finalRefPeFilePath != null ? new CompilerEmitStreamProvider(this, finalRefPeFilePath) : null;
 
                         RSAParameters? privateKeyOpt = null;
-                        if (compilation.Options.StrongNameProvider?.Capability == SigningCapability.SignsPeBuilder && !compilation.Options.PublicSign)
+                        if (compilation.Options.StrongNameProvider != null && compilation.SignUsingBuilder && !compilation.Options.PublicSign)
                         {
                             privateKeyOpt = compilation.StrongNameKeys.PrivateKey;
                         }
@@ -1087,7 +1095,7 @@ namespace Microsoft.CodeAnalysis
             errors = diagnostics.ToReadOnlyAndFree().SelectAsArray(diag => new DiagnosticInfo(messageProvider, diag.IsWarningAsError, diag.Code, (object[])diag.Arguments));
             return stream;
         }
-        
+
         private static Stream GetWin32Resources(
             CommonMessageProvider messageProvider,
             CommandLineArguments arguments,

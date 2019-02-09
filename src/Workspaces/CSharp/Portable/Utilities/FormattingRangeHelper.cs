@@ -294,7 +294,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Utilities
                 return text.AreOnSameLine(token1, token2);
             }
 
-            return CommonFormattingHelpers.GetTextBetween(token1, token2).ContainsLineBreak();
+            return !CommonFormattingHelpers.GetTextBetween(token1, token2).ContainsLineBreak();
         }
 
         private static SyntaxToken GetAppropriatePreviousToken(SyntaxToken startToken, bool canTokenBeFirstInABlock = false)
@@ -358,7 +358,11 @@ namespace Microsoft.CodeAnalysis.CSharp.Utilities
                 node.Kind() == SyntaxKind.FinallyClause ||
                 node.Kind() == SyntaxKind.LabeledStatement ||
                 node.Kind() == SyntaxKind.LockStatement ||
-                node.Kind() == SyntaxKind.FixedStatement;
+                node.Kind() == SyntaxKind.FixedStatement ||
+                node.Kind() == SyntaxKind.GetAccessorDeclaration ||
+                node.Kind() == SyntaxKind.SetAccessorDeclaration ||
+                node.Kind() == SyntaxKind.AddAccessorDeclaration ||
+                node.Kind() == SyntaxKind.RemoveAccessorDeclaration;
         }
 
         private static SyntaxNode GetTopContainingNode(SyntaxNode node)

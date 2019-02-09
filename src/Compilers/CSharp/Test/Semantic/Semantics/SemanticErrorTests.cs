@@ -2979,7 +2979,7 @@ class F
   ProtectionLevel Prop { get { return 0; } }
 }
 ";
-            CreateCompilation(text, references: new[] { SystemRef }).VerifyDiagnostics(
+            CreateCompilation(text).VerifyDiagnostics(
                 // (9,17): error CS0120: An object reference is required for the non-static field, method, or property 'F.Prop'
                 //   [DefaultValue(Prop.Privacy)] // CS0120
                 Diagnostic(ErrorCode.ERR_ObjectRequired, "Prop").WithArguments("F.Prop"),
@@ -3153,11 +3153,11 @@ class Error
             var constructedMethodSymbol = (MethodSymbol)(boundCall.CandidateSymbols[0]);
             Assert.Equal("void Error.Goo<A.ProtectedClass>(I<A.ProtectedClass> i)", constructedMethodSymbol.ToTestDisplayString());
 
-            var typeArgSymbol = constructedMethodSymbol.TypeArguments.Single();
+            var typeArgSymbol = constructedMethodSymbol.TypeArguments.Single().TypeSymbol;
             Assert.Equal("A.ProtectedClass", typeArgSymbol.ToTestDisplayString());
             Assert.False(model.IsAccessible(callPosition, typeArgSymbol), "Protected inner class is inaccessible");
 
-            var paramTypeSymbol = constructedMethodSymbol.Parameters.Single().Type;
+            var paramTypeSymbol = constructedMethodSymbol.Parameters.Single().Type.TypeSymbol;
             Assert.Equal("I<A.ProtectedClass>", paramTypeSymbol.ToTestDisplayString());
             Assert.False(model.IsAccessible(callPosition, typeArgSymbol), "Type should be inaccessible since type argument is inaccessible");
 
@@ -3779,7 +3779,7 @@ class Test
         {
             // See comments in NameCollisionTests for thoughts on this error.
 
-            CreateCompilation(
+            string text =
 @"class C
 {
     static void M(object x)
@@ -3811,13 +3811,33 @@ class Test
     {
         System.Func<int, int> f = q=>q; // 0136
     }
-}
-")
-                .VerifyDiagnostics(
-                    Diagnostic(ErrorCode.ERR_LocalIllegallyOverrides, "x").WithArguments("x").WithLocation(5, 16),
-                    Diagnostic(ErrorCode.ERR_LocalIllegallyOverrides, "y").WithArguments("y").WithLocation(9, 17),
-                    Diagnostic(ErrorCode.ERR_LocalIllegallyOverrides, "value").WithArguments("value").WithLocation(24, 17),
-                    Diagnostic(ErrorCode.ERR_LocalIllegallyOverrides, "q").WithArguments("q").WithLocation(30, 35));
+}";
+            var comp = CreateCompilation(text, parseOptions: TestOptions.Regular7_3);
+            comp.VerifyDiagnostics(
+                // (5,16): error CS0136: A local or parameter named 'x' cannot be declared in this scope because that name is used in an enclosing local scope to define a local or parameter
+                //         string x = null; // CS0136
+                Diagnostic(ErrorCode.ERR_LocalIllegallyOverrides, "x").WithArguments("x").WithLocation(5, 16),
+                // (9,17): error CS0136: A local or parameter named 'y' cannot be declared in this scope because that name is used in an enclosing local scope to define a local or parameter
+                //             int y = 0; // CS0136
+                Diagnostic(ErrorCode.ERR_LocalIllegallyOverrides, "y").WithArguments("y").WithLocation(9, 17),
+                // (24,17): error CS0136: A local or parameter named 'value' cannot be declared in this scope because that name is used in an enclosing local scope to define a local or parameter
+                //             int value = 0; // CS0136
+                Diagnostic(ErrorCode.ERR_LocalIllegallyOverrides, "value").WithArguments("value").WithLocation(24, 17),
+                // (30,35): error CS0136: A local or parameter named 'q' cannot be declared in this scope because that name is used in an enclosing local scope to define a local or parameter
+                //         System.Func<int, int> f = q=>q; // 0136
+                Diagnostic(ErrorCode.ERR_LocalIllegallyOverrides, "q").WithArguments("q").WithLocation(30, 35));
+
+            comp = CreateCompilation(text);
+            comp.VerifyDiagnostics(
+                // (5,16): error CS0136: A local or parameter named 'x' cannot be declared in this scope because that name is used in an enclosing local scope to define a local or parameter
+                //         string x = null; // CS0136
+                Diagnostic(ErrorCode.ERR_LocalIllegallyOverrides, "x").WithArguments("x").WithLocation(5, 16),
+                // (9,17): error CS0136: A local or parameter named 'y' cannot be declared in this scope because that name is used in an enclosing local scope to define a local or parameter
+                //             int y = 0; // CS0136
+                Diagnostic(ErrorCode.ERR_LocalIllegallyOverrides, "y").WithArguments("y").WithLocation(9, 17),
+                // (24,17): error CS0136: A local or parameter named 'value' cannot be declared in this scope because that name is used in an enclosing local scope to define a local or parameter
+                //             int value = 0; // CS0136
+                Diagnostic(ErrorCode.ERR_LocalIllegallyOverrides, "value").WithArguments("value").WithLocation(24, 17));
         }
 
         [Fact]
@@ -6552,7 +6572,7 @@ class Test
     }
 }
 ";
-            CreateCompilation(source).VerifyDiagnostics(
+            CreateCompilation(source, targetFramework: TargetFramework.Mscorlib45).VerifyDiagnostics(
                 // (9,9): error CS0176: Member 'Delegate.CreateDelegate(Type, object, string)' cannot be accessed with an instance reference; qualify it with a type name instead
                 //         D.CreateDelegate(null, null, null); // CS0176
                 Diagnostic(ErrorCode.ERR_ObjectProhibited, "D.CreateDelegate").WithArguments("System.Delegate.CreateDelegate(System.Type, object, string)").WithLocation(9, 9)
@@ -6859,7 +6879,7 @@ public class C
     M(__arglist);
   }
 }";
-            var comp = CreateCompilation(source);
+            var comp = CreateCompilation(source, targetFramework: TargetFramework.Mscorlib45);
             comp.VerifyDiagnostics(
                 // (11,7): error CS0190: The __arglist construct is valid only within a variable argument method
                 //     M(__arglist);
@@ -6926,7 +6946,7 @@ public class C
   {
   }
 }";
-            CreateCompilation(source).VerifyEmitDiagnostics(
+            CreateCompilationWithMscorlib45(source).VerifyEmitDiagnostics(
                 // (10,34): error CS4013: Instance of type 'System.RuntimeArgumentHandle' cannot be used inside an anonymous function, query expression, iterator block or async method
                 //       RuntimeArgumentHandle h2 = h; // Bad use of h
                 Diagnostic(ErrorCode.ERR_SpecialByRefInLambda, "h").WithArguments("System.RuntimeArgumentHandle"),
@@ -7441,7 +7461,7 @@ public class MyList<T>
    }
 }";
             CreateCompilation(text).VerifyDiagnostics(
-                // (9,10): error CS0201: Only assignment, call, increment, decrement, and new object expressions can be used as a statement
+                // (9,10): error CS0201: Only assignment, call, increment, decrement, await, and new object expressions can be used as a statement
                 Diagnostic(ErrorCode.ERR_IllegalStatement, "checked(i++)"));
         }
 
@@ -7460,16 +7480,16 @@ class A
     }
 }";
             CreateCompilation(text, parseOptions: TestOptions.Regular.WithTuplesFeature()).VerifyDiagnostics(
-    // (6,9): error CS0201: Only assignment, call, increment, decrement, and new object expressions can be used as a statement
+    // (6,9): error CS0201: Only assignment, call, increment, decrement, await, and new object expressions can be used as a statement
     //         (a) => a;
     Diagnostic(ErrorCode.ERR_IllegalStatement, "(a) => a").WithLocation(6, 9),
-    // (7,9): error CS0201: Only assignment, call, increment, decrement, and new object expressions can be used as a statement
+    // (7,9): error CS0201: Only assignment, call, increment, decrement, await, and new object expressions can be used as a statement
     //         (a, b) => { };
     Diagnostic(ErrorCode.ERR_IllegalStatement, "(a, b) => { }").WithLocation(7, 9),
-    // (9,9): error CS0201: Only assignment, call, increment, decrement, and new object expressions can be used as a statement
+    // (9,9): error CS0201: Only assignment, call, increment, decrement, await, and new object expressions can be used as a statement
     //         x + y; x == 1;
     Diagnostic(ErrorCode.ERR_IllegalStatement, "x + y").WithLocation(9, 9),
-    // (9,16): error CS0201: Only assignment, call, increment, decrement, and new object expressions can be used as a statement
+    // (9,16): error CS0201: Only assignment, call, increment, decrement, await, and new object expressions can be used as a statement
     //         x + y; x == 1;
     Diagnostic(ErrorCode.ERR_IllegalStatement, "x == 1").WithLocation(9, 16),
     // (4,23): error CS0161: 'A.Main()': not all code paths return a value
@@ -7494,16 +7514,16 @@ class A
 }";
             var comp = CreateCompilation(new[] { Parse(test, options: TestOptions.Regular6) }, new MetadataReference[] { });
             comp.VerifyDiagnostics(
-    // (6,9): error CS0201: Only assignment, call, increment, decrement, and new object expressions can be used as a statement
+    // (6,9): error CS0201: Only assignment, call, increment, decrement, await, and new object expressions can be used as a statement
     //         (a) => a;
     Diagnostic(ErrorCode.ERR_IllegalStatement, "(a) => a").WithLocation(6, 9),
-    // (7,9): error CS0201: Only assignment, call, increment, decrement, and new object expressions can be used as a statement
+    // (7,9): error CS0201: Only assignment, call, increment, decrement, await, and new object expressions can be used as a statement
     //         (a, b) => { };
     Diagnostic(ErrorCode.ERR_IllegalStatement, "(a, b) => { }").WithLocation(7, 9),
-    // (9,9): error CS0201: Only assignment, call, increment, decrement, and new object expressions can be used as a statement
+    // (9,9): error CS0201: Only assignment, call, increment, decrement, await, and new object expressions can be used as a statement
     //         x + y; x == 1;
     Diagnostic(ErrorCode.ERR_IllegalStatement, "x + y").WithLocation(9, 9),
-    // (9,16): error CS0201: Only assignment, call, increment, decrement, and new object expressions can be used as a statement
+    // (9,16): error CS0201: Only assignment, call, increment, decrement, await, and new object expressions can be used as a statement
     //         x + y; x == 1;
     Diagnostic(ErrorCode.ERR_IllegalStatement, "x == 1").WithLocation(9, 16),
     // (4,23): error CS0161: 'A.Main()': not all code paths return a value
@@ -7801,106 +7821,28 @@ unsafe class C
     I* i;
     C* c;
 }";
-            CreateCompilationWithMscorlib40AndSystemCore(source, options: TestOptions.UnsafeReleaseDll).VerifyDiagnostics(
-                // (7,5): error CS0208: Cannot take the address of, get the size of, or declare a pointer to a managed type ('object')
-                //     object* _object;
-                Diagnostic(ErrorCode.ERR_ManagedAddr, "object*").WithArguments("object"),
-                // (22,5): error CS0208: Cannot take the address of, get the size of, or declare a pointer to a managed type ('string')
-                //     string* _string;
-                Diagnostic(ErrorCode.ERR_ManagedAddr, "string*").WithArguments("string"),
-                // (26,5): error CS0208: Cannot take the address of, get the size of, or declare a pointer to a managed type ('int?')
-                //     int?* _nullable;
-                Diagnostic(ErrorCode.ERR_ManagedAddr, "int?*").WithArguments("int?"),
-                // (27,5): error CS0208: Cannot take the address of, get the size of, or declare a pointer to a managed type ('dynamic')
-                //     dynamic* _dynamic;
-                Diagnostic(ErrorCode.ERR_ManagedAddr, "dynamic*").WithArguments("dynamic"),
-                // (29,5): error CS0208: Cannot take the address of, get the size of, or declare a pointer to a managed type ('D')
-                //     D* d;
-                Diagnostic(ErrorCode.ERR_ManagedAddr, "D*").WithArguments("D"),
-                // (31,5): error CS0208: Cannot take the address of, get the size of, or declare a pointer to a managed type ('I')
-                //     I* i;
-                Diagnostic(ErrorCode.ERR_ManagedAddr, "I*").WithArguments("I"),
-                // (32,5): error CS0208: Cannot take the address of, get the size of, or declare a pointer to a managed type ('C')
-                //     C* c;
-                Diagnostic(ErrorCode.ERR_ManagedAddr, "C*").WithArguments("C"),
-                // (7,13): warning CS0169: The field 'C._object' is never used
-                //     object* _object;
-                Diagnostic(ErrorCode.WRN_UnreferencedField, "_object").WithArguments("C._object"),
-                // (8,11): warning CS0169: The field 'C._void' is never used
-                //     void* _void;
-                Diagnostic(ErrorCode.WRN_UnreferencedField, "_void").WithArguments("C._void"),
-                // (9,11): warning CS0169: The field 'C._bool' is never used
-                //     bool* _bool;
-                Diagnostic(ErrorCode.WRN_UnreferencedField, "_bool").WithArguments("C._bool"),
-                // (10,11): warning CS0169: The field 'C._char' is never used
-                //     char* _char;
-                Diagnostic(ErrorCode.WRN_UnreferencedField, "_char").WithArguments("C._char"),
-                // (11,12): warning CS0169: The field 'C._sbyte' is never used
-                //     sbyte* _sbyte;
-                Diagnostic(ErrorCode.WRN_UnreferencedField, "_sbyte").WithArguments("C._sbyte"),
-                // (12,11): warning CS0169: The field 'C._byte' is never used
-                //     byte* _byte;
-                Diagnostic(ErrorCode.WRN_UnreferencedField, "_byte").WithArguments("C._byte"),
-                // (13,12): warning CS0169: The field 'C._short' is never used
-                //     short* _short;
-                Diagnostic(ErrorCode.WRN_UnreferencedField, "_short").WithArguments("C._short"),
-                // (14,13): warning CS0169: The field 'C._ushort' is never used
-                //     ushort* _ushort;
-                Diagnostic(ErrorCode.WRN_UnreferencedField, "_ushort").WithArguments("C._ushort"),
-                // (15,10): warning CS0169: The field 'C._int' is never used
-                //     int* _int;
-                Diagnostic(ErrorCode.WRN_UnreferencedField, "_int").WithArguments("C._int"),
-                // (16,11): warning CS0169: The field 'C._uint' is never used
-                //     uint* _uint;
-                Diagnostic(ErrorCode.WRN_UnreferencedField, "_uint").WithArguments("C._uint"),
-                // (17,11): warning CS0169: The field 'C._long' is never used
-                //     long* _long;
-                Diagnostic(ErrorCode.WRN_UnreferencedField, "_long").WithArguments("C._long"),
-                // (18,12): warning CS0169: The field 'C._ulong' is never used
-                //     ulong* _ulong;
-                Diagnostic(ErrorCode.WRN_UnreferencedField, "_ulong").WithArguments("C._ulong"),
-                // (19,14): warning CS0169: The field 'C._decimal' is never used
-                //     decimal* _decimal;
-                Diagnostic(ErrorCode.WRN_UnreferencedField, "_decimal").WithArguments("C._decimal"),
-                // (20,12): warning CS0169: The field 'C._float' is never used
-                //     float* _float;
-                Diagnostic(ErrorCode.WRN_UnreferencedField, "_float").WithArguments("C._float"),
-                // (21,13): warning CS0169: The field 'C._double' is never used
-                //     double* _double;
-                Diagnostic(ErrorCode.WRN_UnreferencedField, "_double").WithArguments("C._double"),
-                // (22,13): warning CS0169: The field 'C._string' is never used
-                //     string* _string;
-                Diagnostic(ErrorCode.WRN_UnreferencedField, "_string").WithArguments("C._string"),
-                // (23,20): warning CS0169: The field 'C._intptr' is never used
-                //     System.IntPtr* _intptr;
-                Diagnostic(ErrorCode.WRN_UnreferencedField, "_intptr").WithArguments("C._intptr"),
-                // (24,21): warning CS0169: The field 'C._uintptr' is never used
-                //     System.UIntPtr* _uintptr;
-                Diagnostic(ErrorCode.WRN_UnreferencedField, "_uintptr").WithArguments("C._uintptr"),
-                // (25,11): warning CS0169: The field 'C._intptr2' is never used
-                //     int** _intptr2;
-                Diagnostic(ErrorCode.WRN_UnreferencedField, "_intptr2").WithArguments("C._intptr2"),
-                // (26,11): warning CS0169: The field 'C._nullable' is never used
-                //     int?* _nullable;
-                Diagnostic(ErrorCode.WRN_UnreferencedField, "_nullable").WithArguments("C._nullable"),
-                // (27,14): warning CS0169: The field 'C._dynamic' is never used
-                //     dynamic* _dynamic;
-                Diagnostic(ErrorCode.WRN_UnreferencedField, "_dynamic").WithArguments("C._dynamic"),
-                // (28,8): warning CS0169: The field 'C.e' is never used
-                //     E* e;
-                Diagnostic(ErrorCode.WRN_UnreferencedField, "e").WithArguments("C.e"),
-                // (29,8): warning CS0169: The field 'C.d' is never used
-                //     D* d;
-                Diagnostic(ErrorCode.WRN_UnreferencedField, "d").WithArguments("C.d"),
-                // (30,8): warning CS0169: The field 'C.s' is never used
-                //     S* s;
-                Diagnostic(ErrorCode.WRN_UnreferencedField, "s").WithArguments("C.s"),
-                // (31,8): warning CS0169: The field 'C.i' is never used
-                //     I* i;
-                Diagnostic(ErrorCode.WRN_UnreferencedField, "i").WithArguments("C.i"),
-                // (32,8): warning CS0169: The field 'C.c' is never used
-                //     C* c;
-                Diagnostic(ErrorCode.WRN_UnreferencedField, "c").WithArguments("C.c"));
+            CreateCompilationWithMscorlib40AndSystemCore(source, options: TestOptions.UnsafeReleaseDll)
+                .GetDiagnostics()
+                .Where(d => d.Severity == DiagnosticSeverity.Error)
+                .Verify(
+                    // (7,5): error CS0208: Cannot take the address of, get the size of, or declare a pointer to a managed type ('object')
+                    //     object* _object;
+                    Diagnostic(ErrorCode.ERR_ManagedAddr, "object*").WithArguments("object"),
+                    // (22,5): error CS0208: Cannot take the address of, get the size of, or declare a pointer to a managed type ('string')
+                    //     string* _string;
+                    Diagnostic(ErrorCode.ERR_ManagedAddr, "string*").WithArguments("string"),
+                    // (27,5): error CS0208: Cannot take the address of, get the size of, or declare a pointer to a managed type ('dynamic')
+                    //     dynamic* _dynamic;
+                    Diagnostic(ErrorCode.ERR_ManagedAddr, "dynamic*").WithArguments("dynamic"),
+                    // (29,5): error CS0208: Cannot take the address of, get the size of, or declare a pointer to a managed type ('D')
+                    //     D* d;
+                    Diagnostic(ErrorCode.ERR_ManagedAddr, "D*").WithArguments("D"),
+                    // (31,5): error CS0208: Cannot take the address of, get the size of, or declare a pointer to a managed type ('I')
+                    //     I* i;
+                    Diagnostic(ErrorCode.ERR_ManagedAddr, "I*").WithArguments("I"),
+                    // (32,5): error CS0208: Cannot take the address of, get the size of, or declare a pointer to a managed type ('C')
+                    //     C* c;
+                    Diagnostic(ErrorCode.ERR_ManagedAddr, "C*").WithArguments("C"));
         }
 
         [Fact]
@@ -9746,7 +9688,7 @@ namespace N
         }
     }
 }";
-            CreateCompilation(text, references: new[] { SystemCoreRef }).VerifyDiagnostics(
+            CreateCompilation(text).VerifyDiagnostics(
                 // (4,7): error CS0310: 'B' must be a non-abstract type with a public parameterless constructor in order to use it as parameter 'T' in the generic type or method 'C<T>'
                 // using CB = N.C<N.B>;
                 Diagnostic(ErrorCode.ERR_NewConstraintNotSatisfied, "CB").WithArguments("N.C<T>", "T", "N.B").WithLocation(4, 7),
@@ -9811,7 +9753,7 @@ class D<T> where T : new()
         D<C>.M();
     }
 }";
-            CreateCompilation(text, references: new[] { SystemCoreRef }).VerifyDiagnostics(
+            CreateCompilation(text).VerifyDiagnostics(
                 // (18,11): error CS0310: 'B' must be a non-abstract type with a public parameterless constructor in order to use it as parameter 'T' in the generic type or method 'D<T>'
                 Diagnostic(ErrorCode.ERR_NewConstraintNotSatisfied, "B").WithArguments("D<T>", "T", "B").WithLocation(18, 11),
                 // (19,11): error CS0310: 'C' must be a non-abstract type with a public parameterless constructor in order to use it as parameter 'T' in the generic type or method 'D<T>'
@@ -11145,7 +11087,7 @@ public class Test
     public System.RuntimeArgumentHandle[][] y;
 }
 ";
-            var comp = CreateCompilation(text);
+            var comp = CreateCompilation(text, targetFramework: TargetFramework.Mscorlib45);
             comp.VerifyDiagnostics(
                 // (4,12): error CS0611: Array elements cannot be of type 'System.TypedReference'
                 //     public System.TypedReference[] x;
@@ -11170,7 +11112,7 @@ class C
         var z = new[] { new RuntimeArgumentHandle() };
     }
 }";
-            var comp = CreateCompilation(text);
+            var comp = CreateCompilation(text, targetFramework: TargetFramework.Mscorlib45);
             comp.VerifyDiagnostics(
                 // (6,17): error CS0611: Array elements cannot be of type 'System.ArgIterator'
                 //         var x = new[] { new ArgIterator() };
@@ -15530,7 +15472,7 @@ unsafe class Test
 }
 ";
 
-            var c = CompileAndVerify(text, expectedOutput: "7788", verify: Verification.Fails, options:TestOptions.UnsafeReleaseExe);
+            var c = CompileAndVerify(text, expectedOutput: "7788", verify: Verification.Fails, options: TestOptions.UnsafeReleaseExe);
 
             c.VerifyIL("Test.example1()", @"
 {
@@ -15725,9 +15667,9 @@ class C
             CreateCompilation(text).VerifyDiagnostics(
                 // (7,22): warning CS0642: Possible mistaken empty statement
                 Diagnostic(ErrorCode.WRN_PossibleMistakenNullStatement, ";"),
-                // (6,16): error CS1674: 'int': type used in a using statement must be implicitly convertible to 'System.IDisposable'
+                // (6,16): error CS1674: 'int': type used in a using statement must be implicitly convertible to 'System.IDisposable'.
                 Diagnostic(ErrorCode.ERR_NoConvToIDisp, "int a = 0").WithArguments("int"),
-                // (7,20): error CS1674: 'int': type used in a using statement must be implicitly convertible to 'System.IDisposable'
+                // (7,20): error CS1674: 'int': type used in a using statement must be implicitly convertible to 'System.IDisposable'.
                 Diagnostic(ErrorCode.ERR_NoConvToIDisp, "a").WithArguments("int"));
         }
 
@@ -15744,7 +15686,7 @@ class Errors
    }
 }
 ";
-            var compilation = CreateCompilation(text, references: new[] { SystemCoreRef });
+            var compilation = CreateCompilation(text);
             compilation.VerifyDiagnostics(
                 // (7,13): error CS1661: Cannot convert anonymous method to delegate type 'E' because the parameter types do not match the delegate parameter types
                 //       E e = delegate(out int i) { };   // CS1676
@@ -15772,7 +15714,7 @@ class Errors
     }
 }
 ";
-            var compilation = CreateCompilation(text, references: new[] { SystemCoreRef });
+            var compilation = CreateCompilation(text);
             compilation.VerifyDiagnostics(
                 // (7,15): error CS1661: Cannot convert anonymous method to delegate type 'D' because the parameter types do not match the delegate parameter types
                 //         D d = delegate(out int i) { };   // CS1677
@@ -16758,7 +16700,7 @@ class Test
     }
 }
 ";
-            CreateCompilation(text, new[] { LinqAssemblyRef }).VerifyDiagnostics(
+            CreateCompilation(text).VerifyDiagnostics(
                 // (13,35): error CS1939: Cannot pass the range variable 'x' as an out or ref parameter
                 //                 select Test.F(ref x); // CS1939
                 Diagnostic(ErrorCode.ERR_QueryOutRefRangeVariable, "x").WithArguments("x"));
@@ -16986,7 +16928,7 @@ class Test
     }
 }
 ";
-            CreateCompilation(program, new[] { LinqAssemblyRef }).VerifyDiagnostics(
+            CreateCompilation(program).VerifyDiagnostics(
                 Diagnostic(ErrorCode.ERR_QueryRangeVariableReadOnly, "i").WithArguments("i"));
         }
 
@@ -20179,8 +20121,11 @@ class Test
    }
 }
 ";
-            DiagnosticsUtils.VerifyErrorsAndGetCompilationWithMscorlib(text,
-                new ErrorDescription[] { new ErrorDescription { Code = (int)ErrorCode.WRN_GotoCaseShouldConvert, Line = 13, Column = 13, IsWarning = true } });
+            CreateCompilation(text).VerifyDiagnostics(
+                // (13,13): warning CS0469: The 'goto case' value is not implicitly convertible to type 'char'
+                //             goto case 127;   // CS0469
+                Diagnostic(ErrorCode.WRN_GotoCaseShouldConvert, "goto case 127;").WithArguments("char").WithLocation(13, 13)
+                );
         }
 
         [Fact, WorkItem(663, "https://github.com/dotnet/roslyn/issues/663")]
@@ -20858,7 +20803,7 @@ class C
         }
 
         [WorkItem(543615, "http://vstfdevdiv:8080/DevDiv2/DevDiv/_workitems/edit/543615"), WorkItem(546550, "http://vstfdevdiv:8080/DevDiv2/DevDiv/_workitems/edit/546550")]
-        [ClrOnlyFact(ClrOnlyReason.Pdb)]
+        [ConditionalFact(typeof(WindowsOnly), Reason = ConditionalSkipReason.NativePdbRequiresDesktop)]
         public void CS0811ERR_DebugFullNameTooLong()
         {
             var text = @"
@@ -20882,11 +20827,11 @@ namespace TestNamespace
 }
 ";
 
-            var compilation = CreateCompilation(text, options: TestOptions.DebugExe);
+            var compilation = CreateCompilation(text, targetFramework: TargetFramework.Mscorlib45, options: TestOptions.DebugExe);
 
             var exebits = new System.IO.MemoryStream();
             var pdbbits = new System.IO.MemoryStream();
-            var result = compilation.Emit(exebits, pdbbits);
+            var result = compilation.Emit(exebits, pdbbits, options: TestOptions.NativePdbEmit);
 
             result.Diagnostics.Verify(
                 // (12,20): warning CS0811: The fully qualified name for 'AVeryLong TSystem.Collections.Generic.List`1[[System.Collections.Generic.List`1[[System.Collections.Generic.List`1[[System.Collections.Generic.List`1[[System.Collections.Generic.List`1[[System.Collections.Generic.List`1[[System.Collections.Generic.List`1[[System.Collections.Generic.List`1[[System.Collections.Generic.List`1[[System.Collections.Generic.List`1[[System.Collections.Generic.List`1[[System.Collections.Generic.List`1[[System.Collections.Generic.List`1[[System.Collections.Generic.List`1[[System.Collections.Generic.List`1[[System.Collections.Generic.List`1[[System.Collections.Generic.List`1[[System.Collections.Generic.List`1[[System.Collections.Generic.List`1[[System.Collections.Generic.List`1[[System.Collections.Generic.List`1[[System.Collections.Generic.List`1[[System.Collections.Generic.List`1[[System.Collections.Generic.List`1[[System.Collections.Generic.List`1[[System.Collections.Generic.List`1[[System.Collections.Generic.List`1[[System.Collections.Generic.List`1[[System.Int32, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089' is too long for debug information. Compile without '/debug' option.
@@ -21269,7 +21214,7 @@ public class Test
                 Diagnostic(ErrorCode.WRN_MissingXMLComment, "Main").WithArguments("Test.Main()"));
         }
 
-        [ClrOnlyFact]
+        [ConditionalFact(typeof(WindowsDesktopOnly), Reason = "https://github.com/dotnet/roslyn/issues/18610")]
         public void CS1592WRN_XMLParseIncludeError()
         {
             var xmlFile = Temp.CreateFile(extension: ".xml").WriteAllText("&");
@@ -23440,7 +23385,7 @@ class Program
 @"
 IConditionalAccessOperation (OperationKind.ConditionalAccess, Type: ?, IsInvalid) (Syntax: 'base?.ToString()')
   Operation: 
-    IInstanceReferenceOperation (OperationKind.InstanceReference, Type: System.Object, IsInvalid) (Syntax: 'base')
+    IInstanceReferenceOperation (ReferenceKind: ContainingTypeInstance) (OperationKind.InstanceReference, Type: System.Object, IsInvalid) (Syntax: 'base')
   WhenNotNull: 
     IInvocationOperation (virtual System.String System.Object.ToString()) (OperationKind.Invocation, Type: System.String) (Syntax: '.ToString()')
       Instance Receiver: 
@@ -23822,13 +23767,13 @@ class Program
 }
 ";
             CreateCompilationWithMscorlib45(text, options: TestOptions.ReleaseDll).VerifyDiagnostics(
-    // (8,9): error CS0201: Only assignment, call, increment, decrement, and new object expressions can be used as a statement
+    // (8,9): error CS0201: Only assignment, call, increment, decrement, await, and new object expressions can be used as a statement
     //         x?.Length;
     Diagnostic(ErrorCode.ERR_IllegalStatement, "x?.Length").WithLocation(8, 9),
-    // (9,9): error CS0201: Only assignment, call, increment, decrement, and new object expressions can be used as a statement
+    // (9,9): error CS0201: Only assignment, call, increment, decrement, await, and new object expressions can be used as a statement
     //         x?[1];
     Diagnostic(ErrorCode.ERR_IllegalStatement, "x?[1]").WithLocation(9, 9),
-    // (10,9): error CS0201: Only assignment, call, increment, decrement, and new object expressions can be used as a statement
+    // (10,9): error CS0201: Only assignment, call, increment, decrement, await, and new object expressions can be used as a statement
     //         x?.ToString()[1];
     Diagnostic(ErrorCode.ERR_IllegalStatement, "x?.ToString()[1]").WithLocation(10, 9)
                );
@@ -23990,6 +23935,28 @@ class B : System.Attribute {
                 // (2,2): error CS8355: Cannot use attribute constructor 'A.A(in int)' because it is has 'in' parameters.
                 // [A(1)]
                 Diagnostic(ErrorCode.ERR_AttributeCtorInParameter, "A(1)").WithArguments("A.A(in int)").WithLocation(2, 2)
+                );
+        }
+
+        [Fact]
+        public void ERR_ExpressionTreeContainsSwitchExpression()
+        {
+            var text = @"
+using System;
+using System.Linq.Expressions;
+
+public class C
+{
+    public int Test()
+    {
+        Expression<Func<int, int>> e = a => a switch { 0 => 1, _ => 2 }; // CS8411
+        return 1;
+    }
+}";
+            CreateCompilationWithMscorlib40AndSystemCore(text, parseOptions: TestOptions.RegularWithRecursivePatterns).VerifyDiagnostics(
+                // (9,45): error CS8411: An expression tree may not contain a switch expression.
+                //         Expression<Func<int, int>> e = a => a switch { 0 => 1, _ => 2 }; // CS8411
+                Diagnostic(ErrorCode.ERR_ExpressionTreeContainsSwitchExpression, "a switch { 0 => 1, _ => 2 }").WithLocation(9, 45)
                 );
         }
     }

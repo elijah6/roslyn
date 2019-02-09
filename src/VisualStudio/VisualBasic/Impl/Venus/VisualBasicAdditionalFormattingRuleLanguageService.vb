@@ -13,8 +13,8 @@ Namespace Microsoft.VisualStudio.LanguageServices.VisualBasic.Venus
     Friend Class VisualBasicAdditionalFormattingRuleLanguageService
         Implements IAdditionalFormattingRuleLanguageService
 
-        Public Function GetAdditionalCodeGenerationRule() As IFormattingRule Implements IAdditionalFormattingRuleLanguageService.GetAdditionalCodeGenerationRule
-            Return New LineAdjustmentFormattingRule()
+        Public Function GetAdditionalCodeGenerationRule() As AbstractFormattingRule Implements IAdditionalFormattingRuleLanguageService.GetAdditionalCodeGenerationRule
+            Return LineAdjustmentFormattingRule.Instance
         End Function
     End Class
 End Namespace

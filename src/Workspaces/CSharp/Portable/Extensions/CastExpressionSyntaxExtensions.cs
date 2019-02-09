@@ -1,11 +1,13 @@
 ﻿// Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
 
-using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using Microsoft.CodeAnalysis.CSharp.Symbols;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.CSharp.Utilities;
+using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.Shared.Extensions;
+using Microsoft.CodeAnalysis.Simplification;
 
 namespace Microsoft.CodeAnalysis.CSharp.Extensions
 {
@@ -451,6 +453,12 @@ namespace Microsoft.CodeAnalysis.CSharp.Extensions
                 var castToOuterType = semanticModel.ClassifyConversion(cast.SpanStart, cast, outerType);
                 var expressionToOuterType = GetSpeculatedExpressionToOuterTypeConversion(speculationAnalyzer.ReplacedExpression, speculationAnalyzer, cancellationToken);
 
+                // if the conversion to the outer type doesn't exist, then we shouldn't offer, except for anonymous functions which can't be reasoned about the same way (see below)
+                if (!expressionToOuterType.Exists && !expressionToOuterType.IsAnonymousFunction)
+                {
+                    return false;
+                }
+
                 // CONSIDER: Anonymous function conversions cannot be compared from different semantic models as lambda symbol comparison requires syntax tree equality. Should this be a compiler bug?
                 // For now, just revert back to computing expressionToOuterType using the original semantic model.
                 if (expressionToOuterType.IsAnonymousFunction)
@@ -620,6 +628,29 @@ namespace Microsoft.CodeAnalysis.CSharp.Extensions
                 default:
                     return false;
             }
+        }
+
+        public static ExpressionSyntax Uncast(this CastExpressionSyntax node)
+        {
+            var leadingTrivia = node.OpenParenToken.LeadingTrivia
+                .Concat(node.OpenParenToken.TrailingTrivia)
+                .Concat(node.Type.GetLeadingTrivia())
+                .Concat(node.Type.GetTrailingTrivia())
+                .Concat(node.CloseParenToken.LeadingTrivia)
+                .Concat(node.CloseParenToken.TrailingTrivia)
+                .Concat(node.Expression.GetLeadingTrivia())
+                .Where(t => !t.IsElastic());
+
+            var trailingTrivia = node.GetTrailingTrivia().Where(t => !t.IsElastic());
+
+            var resultNode = node.Expression
+                .WithLeadingTrivia(leadingTrivia)
+                .WithTrailingTrivia(trailingTrivia)
+                .WithAdditionalAnnotations(Simplifier.Annotation);
+
+            resultNode = SimplificationHelpers.CopyAnnotations(from: node, to: resultNode);
+
+            return resultNode;
         }
     }
 }

@@ -317,7 +317,7 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.ExpressionEvaluator.UnitTests
             Optional includeSymbols As Boolean = True) As CompilationTestData
 
             Dim compilation0 = CreateEmptyCompilationWithReferences(
-                {Parse(source)},
+                {Parse(source, SyntaxHelpers.ParseOptions)},
                 {MscorlibRef_v4_0_30316_17626, SystemRef, MsvbRef},
                 options:=If(outputKind = OutputKind.DynamicallyLinkedLibrary, TestOptions.DebugDll, TestOptions.DebugExe))
 
@@ -467,14 +467,27 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.ExpressionEvaluator.UnitTests
             Return MethodDebugInfo(Of TypeSymbol, LocalSymbol).ReadMethodDebugInfo(DirectCast(symReader, ISymUnmanagedReader3), symbolProvider, MetadataTokens.GetToken(peMethod.Handle), methodVersion:=1, ilOffset:=ilOffset, isVisualBasicMethod:=True)
         End Function
 
-        Friend Shared Function GetTupleElementNamesAttributeIfAny(method As IMethodSymbol) As SynthesizedAttributeData
-            Return GetAttributeIfAny(method, "System.Runtime.CompilerServices.TupleElementNamesAttribute")
-        End Function
+        Friend Shared Sub CheckAttribute(assembly As IEnumerable(Of Byte), method As IMethodSymbol, description As AttributeDescription, expected As Boolean)
+            Dim [module] = AssemblyMetadata.CreateFromImage(assembly).GetModules().Single().Module
+            Dim typeName = method.ContainingType.Name
+            Dim typeHandle = [module].MetadataReader.TypeDefinitions.Single(Function(handle) [module].GetTypeDefNameOrThrow(handle) = typeName)
 
-        Friend Shared Function GetAttributeIfAny(method As IMethodSymbol, typeName As String) As SynthesizedAttributeData
-            Return DirectCast(method, MethodSymbol).GetSynthesizedAttributes(forReturnType:=True).
-                Where(Function(a) a.AttributeClass.ToTestDisplayString() = typeName).
-                SingleOrDefault()
-        End Function
+            Dim methodName = method.Name
+            Dim methodHandle = [module].GetMethodsOfTypeOrThrow(typeHandle).Single(Function(handle) [module].GetMethodDefNameOrThrow(handle) = methodName)
+
+            Dim returnParamHandle = [module].GetParametersOfMethodOrThrow(methodHandle).FirstOrDefault()
+
+            If returnParamHandle.IsNil Then
+                Assert.False(expected)
+            Else
+                Dim attributes = [module].GetCustomAttributesOrThrow(returnParamHandle).Where(Function(handle) [module].GetTargetAttributeSignatureIndex(handle, description) <> -1)
+
+                If expected Then
+                    Assert.Equal(1, attributes.Count())
+                Else
+                    Assert.Empty(attributes)
+                End If
+            End If
+        End Sub
     End Class
 End Namespace

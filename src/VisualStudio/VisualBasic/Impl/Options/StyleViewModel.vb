@@ -4,7 +4,6 @@ Imports System.Windows.Data
 Imports Microsoft.CodeAnalysis
 Imports Microsoft.CodeAnalysis.CodeStyle
 Imports Microsoft.CodeAnalysis.Options
-Imports Microsoft.CodeAnalysis.Simplification
 Imports Microsoft.CodeAnalysis.VisualBasic.CodeStyle
 Imports Microsoft.VisualStudio.LanguageServices.Implementation.Options
 
@@ -250,6 +249,43 @@ Class Customer
 end class
 "
 
+        Private Shared ReadOnly s_preferConditionalExpressionOverIfWithAssignments As String = $"
+Class Customer
+    Public Sub New(name as String, age As Integer)
+//[
+        ' {ServicesVSResources.Prefer_colon}
+        Dim s As String = If(expr, ""hello"", ""world"")
+
+        ' {ServicesVSResources.Over_colon}
+        Dim s As String
+        If expr Then
+            s = ""hello""
+        Else
+            s = ""world""
+        End If
+//]
+    End Sub
+end class
+"
+
+        Private Shared ReadOnly s_preferConditionalExpressionOverIfWithReturns As String = $"
+Class Customer
+    Public Sub New(name as String, age As Integer)
+//[
+        ' {ServicesVSResources.Prefer_colon}
+        Return If(expr, ""hello"", ""world"")
+
+        ' {ServicesVSResources.Over_colon}
+        If expr Then
+            Return ""hello""
+        Else
+            Return ""world""
+        End If
+//]
+    End Sub
+end class
+"
+
         Private Shared ReadOnly s_preferCoalesceExpression As String = $"
 Imports System
 
@@ -337,6 +373,146 @@ Class Customer
     End Sub
 End Class"
 
+        Private Shared ReadOnly s_preferCompoundAssignments As String = $"
+Imports System
+
+Class Customer
+    Sub M1(value as integer)
+//[
+        ' {ServicesVSResources.Prefer_colon}
+        value += 10
+//]
+    End Sub
+    Sub M2(value as integer)
+//[
+        ' {ServicesVSResources.Over_colon}
+        value = value + 10
+//]
+    End Sub
+End Class"
+
+#Region "arithmetic binary parentheses"
+
+        Private Shared ReadOnly s_arithmeticBinaryAlwaysForClarity As String = $"
+class C
+    sub M()
+//[
+        ' {ServicesVSResources.Prefer_colon}
+        Dim v = a + (b * c)
+
+        ' {ServicesVSResources.Over_colon}
+        Dim v = a + b * c
+//]
+    end sub
+end class
+"
+
+        Private Shared ReadOnly s_arithmeticBinaryNeverIfUnnecessary As String = $"
+class C
+    sub M()
+//[
+        ' {ServicesVSResources.Prefer_colon}
+        Dim v = a + b * c
+
+        ' {ServicesVSResources.Over_colon}
+        Dim v = a + (b * c)
+//]
+    end sub
+end class
+"
+
+#End Region
+
+#Region "relational binary parentheses"
+
+        Private Shared ReadOnly s_relationalBinaryAlwaysForClarity As String = $"
+class C
+    sub M()
+//[
+        ' {ServicesVSResources.Keep_all_parentheses_in_colon}
+        Dim v = (a < b) = (c > d)
+//]
+    end sub
+end class
+"
+
+        Private Shared ReadOnly s_relationalBinaryNeverIfUnnecessary As String = $"
+class C
+    sub M()
+//[
+        ' {ServicesVSResources.Prefer_colon}
+        Dim v = a < b = c > d
+
+        ' {ServicesVSResources.Over_colon}
+        Dim v = (a < b) = (c > d)
+//]
+    end sub
+end class
+"
+
+#End Region
+
+#Region "other binary parentheses"
+
+        Private ReadOnly s_otherBinaryAlwaysForClarity As String = $"
+class C
+    sub M()
+//[
+        // {ServicesVSResources.Prefer_colon}
+        Dim v = a OrElse (b AndAlso c)
+
+        // {ServicesVSResources.Over_colon}
+        Dim v = a OrElse b AndAlso c
+//]
+    end sub
+end class
+"
+
+        Private ReadOnly s_otherBinaryNeverIfUnnecessary As String = $"
+class C
+    sub M()
+//[
+        // {ServicesVSResources.Prefer_colon}
+        Dim v = a OrElse b AndAlso c
+
+        // {ServicesVSResources.Over_colon}
+        Dim v = a OrElse (b AndAlso c)
+//]
+    end sub
+end class
+"
+
+#End Region
+
+#Region "other parentheses"
+
+        Private Shared ReadOnly s_otherParenthesesAlwaysForClarity As String = $"
+class C
+    sub M()
+//[
+        ' {ServicesVSResources.Keep_all_parentheses_in_colon}
+        Dim v = (a.b).Length
+//]
+    end sub
+end class
+"
+
+        Private Shared ReadOnly s_otherParenthesesNeverIfUnnecessary As String = $"
+class C
+    sub M()
+//[
+        ' {ServicesVSResources.Prefer_colon}
+        Dim v = a.b.Length
+
+        ' {ServicesVSResources.Over_colon}
+        Dim v = (a.b).Length
+//]
+    end sub
+end class
+"
+
+#End Region
+
         Private Shared ReadOnly s_preferReadonly As String = $"
 Class Customer1
 //[
@@ -353,6 +529,92 @@ Class Customer2
 //]
 End Class"
 
+#Region "unused parameters"
+
+        Private Shared ReadOnly s_avoidUnusedParametersNonPublicMethods As String = $"
+Public Class C1
+//[
+    ' {ServicesVSResources.Prefer_colon}
+    Private Sub M()
+    End Sub
+//]
+End Class
+
+Public Class C2
+//[
+    ' {ServicesVSResources.Over_colon}
+    Private Sub M(param As Integer)
+    End Sub
+//]
+End Class
+"
+
+        Private Shared ReadOnly s_avoidUnusedParametersAllMethods As String = $"
+Public Class C1
+//[
+    ' {ServicesVSResources.Prefer_colon}
+    Public Sub M()
+    End Sub
+//]
+End Class
+
+Public Class C2
+//[
+    ' {ServicesVSResources.Over_colon}
+    Public Sub M(param As Integer)
+    End Sub
+//]
+End Class
+"
+
+#End Region
+
+#Region "unused values"
+
+        Private Shared ReadOnly s_avoidUnusedValueAssignmentUnusedLocal As String = $"
+Class C1
+    Function M() As Integer
+//[
+        ' {ServicesVSResources.Prefer_colon}
+        Dim unused = Computation()   ' {ServicesVSResources.Unused_value_is_explicitly_assigned_to_an_unused_local}
+        Dim x = 1
+//]
+        Return x
+    End Function
+End Class
+
+Class C2
+    Function M() As Integer
+//[
+        ' {ServicesVSResources.Over_colon}
+        Dim x = Computation()   ' {ServicesVSResources.Value_assigned_here_is_never_used}
+        x = 1
+//]
+        Return x
+    End Function
+End Class
+"
+
+        Private Shared ReadOnly s_avoidUnusedValueExpressionStatementUnusedLocal As String = $"
+Class C1
+    Sub M()
+//[
+        ' {ServicesVSResources.Prefer_colon}
+        Dim unused = Computation()   ' {ServicesVSResources.Unused_value_is_explicitly_assigned_to_an_unused_local}
+//]
+    End Sub
+End Class
+
+Class C2
+    Sub M()
+//[
+        ' {ServicesVSResources.Over_colon}
+        Computation()   ' {ServicesVSResources.Value_returned_by_invocation_is_implicitly_ignored}
+//]
+    End Sub
+End Class
+"
+#End Region
 #End Region
 
         Public Sub New(optionSet As OptionSet, serviceProvider As IServiceProvider)
@@ -378,7 +640,8 @@ End Class"
             Dim codeBlockPreferencesGroupTitle = ServicesVSResources.Code_block_preferences_colon
             Dim expressionPreferencesGroupTitle = ServicesVSResources.Expression_preferences_colon
             Dim nothingPreferencesGroupTitle = BasicVSResources.nothing_checking_colon
-            Dim fieldPreferencesGroupTitle = ServicesVSResources.Field_preferences_colon
+            Dim fieldPreferencesGroupTitle = ServicesVSResources.Modifier_preferences_colon
+            Dim parameterPreferencesGroupTitle = ServicesVSResources.Parameter_preferences_colon
 
             ' qualify with Me. group
             Me.CodeStyleItems.Add(New BooleanCodeStyleOptionViewModel(CodeStyleOptions.QualifyFieldAccess, BasicVSResources.Qualify_field_access_with_Me, s_fieldDeclarationPreviewTrue, s_fieldDeclarationPreviewFalse, Me, optionSet, qualifyGroupTitle, qualifyMemberAccessPreferences))
@@ -390,6 +653,8 @@ End Class"
             Me.CodeStyleItems.Add(New BooleanCodeStyleOptionViewModel(CodeStyleOptions.PreferIntrinsicPredefinedTypeKeywordInDeclaration, ServicesVSResources.For_locals_parameters_and_members, _intrinsicDeclarationPreviewTrue, _intrinsicDeclarationPreviewFalse, Me, optionSet, predefinedTypesGroupTitle, predefinedTypesPreferences))
             Me.CodeStyleItems.Add(New BooleanCodeStyleOptionViewModel(CodeStyleOptions.PreferIntrinsicPredefinedTypeKeywordInMemberAccess, ServicesVSResources.For_member_access_expressions, _intrinsicMemberAccessPreviewTrue, _intrinsicMemberAccessPreviewFalse, Me, optionSet, predefinedTypesGroupTitle, predefinedTypesPreferences))
 
+            AddParenthesesOptions(optionSet)
+
             ' Code block
             Me.CodeStyleItems.Add(New BooleanCodeStyleOptionViewModel(CodeStyleOptions.PreferAutoProperties, ServicesVSResources.analyzer_Prefer_auto_properties, s_preferAutoProperties, s_preferAutoProperties, Me, optionSet, codeBlockPreferencesGroupTitle))
 
@@ -399,14 +664,91 @@ End Class"
             Me.CodeStyleItems.Add(New BooleanCodeStyleOptionViewModel(CodeStyleOptions.PreferExplicitTupleNames, ServicesVSResources.Prefer_explicit_tuple_name, s_preferExplicitTupleName, s_preferExplicitTupleName, Me, optionSet, expressionPreferencesGroupTitle))
             Me.CodeStyleItems.Add(New BooleanCodeStyleOptionViewModel(CodeStyleOptions.PreferInferredTupleNames, ServicesVSResources.Prefer_inferred_tuple_names, s_preferInferredTupleName, s_preferInferredTupleName, Me, optionSet, expressionPreferencesGroupTitle))
             Me.CodeStyleItems.Add(New BooleanCodeStyleOptionViewModel(CodeStyleOptions.PreferInferredAnonymousTypeMemberNames, ServicesVSResources.Prefer_inferred_anonymous_type_member_names, s_preferInferredAnonymousTypeMemberName, s_preferInferredAnonymousTypeMemberName, Me, optionSet, expressionPreferencesGroupTitle))
+            Me.CodeStyleItems.Add(New BooleanCodeStyleOptionViewModel(CodeStyleOptions.PreferConditionalExpressionOverAssignment, ServicesVSResources.Prefer_conditional_expression_over_if_with_assignments, s_preferConditionalExpressionOverIfWithAssignments, s_preferConditionalExpressionOverIfWithAssignments, Me, optionSet, expressionPreferencesGroupTitle))
+            Me.CodeStyleItems.Add(New BooleanCodeStyleOptionViewModel(CodeStyleOptions.PreferConditionalExpressionOverReturn, ServicesVSResources.Prefer_conditional_expression_over_if_with_returns, s_preferConditionalExpressionOverIfWithReturns, s_preferConditionalExpressionOverIfWithReturns, Me, optionSet, expressionPreferencesGroupTitle))
+            Me.CodeStyleItems.Add(New BooleanCodeStyleOptionViewModel(CodeStyleOptions.PreferCompoundAssignment, ServicesVSResources.Prefer_compound_assignments, s_preferCompoundAssignments, s_preferCompoundAssignments, Me, optionSet, expressionPreferencesGroupTitle))
+
+            AddUnusedValueOptions(optionSet, expressionPreferencesGroupTitle)
 
             ' nothing preferences
             Me.CodeStyleItems.Add(New BooleanCodeStyleOptionViewModel(CodeStyleOptions.PreferCoalesceExpression, ServicesVSResources.Prefer_coalesce_expression, s_preferCoalesceExpression, s_preferCoalesceExpression, Me, optionSet, nothingPreferencesGroupTitle))
             Me.CodeStyleItems.Add(New BooleanCodeStyleOptionViewModel(CodeStyleOptions.PreferNullPropagation, ServicesVSResources.Prefer_null_propagation, s_preferNullPropagation, s_preferNullPropagation, Me, optionSet, nothingPreferencesGroupTitle))
-            Me.CodeStyleItems.Add(New BooleanCodeStyleOptionViewModel(CodeStyleOptions.PreferIsNullCheckOverReferenceEqualityMethod, BasicVSResources.Prefer_Is_Nothing_over_ReferenceEquals, s_preferIsNothingCheckOverReferenceEquals, s_preferIsNothingCheckOverReferenceEquals, Me, optionSet, nothingPreferencesGroupTitle))
+            Me.CodeStyleItems.Add(New BooleanCodeStyleOptionViewModel(CodeStyleOptions.PreferIsNullCheckOverReferenceEqualityMethod, BasicVSResources.Prefer_Is_Nothing_for_reference_equality_checks, s_preferIsNothingCheckOverReferenceEquals, s_preferIsNothingCheckOverReferenceEquals, Me, optionSet, nothingPreferencesGroupTitle))
 
-            ' field preferences
-            Me.CodeStyleItems.Add(New BooleanCodeStyleOptionViewModel(CodeStyleOptions.PreferReadonly, ServicesVSResources.Prefer_readonly, s_preferReadonly, s_preferReadonly, Me, optionSet, fieldPreferencesGroupTitle))
+            ' Field preferences
+            Me.CodeStyleItems.Add(New BooleanCodeStyleOptionViewModel(CodeStyleOptions.PreferReadonly, ServicesVSResources.Prefer_readonly_fields, s_preferReadonly, s_preferReadonly, Me, optionSet, fieldPreferencesGroupTitle))
+
+            ' Parameter preferences
+            AddParameterOptions(optionSet, parameterPreferencesGroupTitle)
+        End Sub
+
+        Private Sub AddParenthesesOptions(optionSet As OptionSet)
+            AddParenthesesOption(
+                LanguageNames.VisualBasic, optionSet, CodeStyleOptions.ArithmeticBinaryParentheses,
+                BasicVSResources.In_arithmetic_binary_operators,
+                {s_arithmeticBinaryAlwaysForClarity, s_arithmeticBinaryNeverIfUnnecessary},
+                defaultAddForClarity:=True)
+
+            AddParenthesesOption(
+                LanguageNames.VisualBasic, optionSet, CodeStyleOptions.OtherBinaryParentheses,
+                BasicVSResources.In_other_binary_operators,
+                {s_otherBinaryAlwaysForClarity, s_otherBinaryNeverIfUnnecessary},
+                defaultAddForClarity:=True)
+
+            AddParenthesesOption(
+                LanguageNames.VisualBasic, optionSet, CodeStyleOptions.RelationalBinaryParentheses,
+                BasicVSResources.In_relational_binary_operators,
+                {s_relationalBinaryAlwaysForClarity, s_relationalBinaryNeverIfUnnecessary},
+                defaultAddForClarity:=True)
+
+            AddParenthesesOption(
+                LanguageNames.VisualBasic, optionSet, CodeStyleOptions.OtherParentheses,
+                ServicesVSResources.In_other_operators,
+                {s_otherParenthesesAlwaysForClarity, s_otherParenthesesNeverIfUnnecessary},
+                defaultAddForClarity:=False)
+        End Sub
+
+        Private Sub AddUnusedValueOptions(optionSet As OptionSet, expressionPreferencesGroupTitle As String)
+            Dim unusedValuePreferences = New List(Of CodeStylePreference) From
+            {
+                New CodeStylePreference(BasicVSResources.Unused_local, isChecked:=True)
+            }
+
+            Dim enumValues =
+            {
+                UnusedValuePreference.UnusedLocalVariable
+            }
+
+            Me.CodeStyleItems.Add(New EnumCodeStyleOptionViewModel(Of UnusedValuePreference)(
+                                    VisualBasicCodeStyleOptions.UnusedValueAssignment,
+                                    ServicesVSResources.Avoid_unused_value_assignments,
+                                    enumValues,
+                                    {s_avoidUnusedValueAssignmentUnusedLocal},
+                                    Me,
+                                    optionSet,
+                                    expressionPreferencesGroupTitle,
+                                    unusedValuePreferences))
+
+            Me.CodeStyleItems.Add(New EnumCodeStyleOptionViewModel(Of UnusedValuePreference)(
+                                    VisualBasicCodeStyleOptions.UnusedValueExpressionStatement,
+                                    ServicesVSResources.Avoid_expression_statements_that_implicitly_ignore_value,
+                                    enumValues,
+                                    {s_avoidUnusedValueExpressionStatementUnusedLocal},
+                                    Me,
+                                    optionSet,
+                                    expressionPreferencesGroupTitle,
+                                    unusedValuePreferences))
+
+        End Sub
+
+        Private Sub AddParameterOptions(optionSet As OptionSet, parameterPreferencesGroupTitle As String)
+            Dim examples =
+            {
+                s_avoidUnusedParametersNonPublicMethods,
+                s_avoidUnusedParametersAllMethods
+            }
+
+            AddUnusedParameterOption(LanguageNames.VisualBasic, optionSet, parameterPreferencesGroupTitle, examples)
         End Sub
     End Class
 End Namespace
